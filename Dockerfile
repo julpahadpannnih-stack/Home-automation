@@ -1,14 +1,18 @@
-# Dockerfile for Smart Home API (api.php)
-# Base image: official PHP 8.2 with Apache bundled in
 FROM php:8.2-apache
 
-# Install the mysqli and PDO MySQL extensions
-RUN docker-php-ext-install mysqli pdo pdo_mysql && \
-    docker-php-ext-enable mysqli pdo_mysql
+RUN docker-php-ext-install mysqli pdo pdo_mysql
 
-# Copy the API file into the Apache web root
+# Allow Apache to serve files properly
+RUN echo '<Directory /var/www/html>\n\
+    Options -Indexes\n\
+    AllowOverride All\n\
+    Require all granted\n\
+</Directory>' > /etc/apache2/conf-available/smarthome.conf \
+    && a2enconf smarthome
+
 COPY api.php /var/www/html/api.php
 
-# Apache listens on port 80 inside the container.
-# Render automatically maps this to its public HTTPS URL.
+RUN chown -R www-data:www-data /var/www/html && \
+    chmod -R 755 /var/www/html
+
 EXPOSE 80
