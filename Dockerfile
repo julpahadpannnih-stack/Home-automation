@@ -1,32 +1,29 @@
-# Dockerfile for Smart Home API (api.php)
-# Base image: official PHP 8.2 with Apache bundled in
 FROM php:8.2-apache
 
-# Install the mysqli and PDO MySQL extensions
+# Install PHP extensions
 RUN docker-php-ext-install mysqli pdo pdo_mysql && \
     docker-php-ext-enable mysqli pdo_mysql
 
-# Enable Apache mod_rewrite
-RUN a2enmod rewrite
+# Enable mod_rewrite
+RUN a2enmod rewrite headers
 
-# Copy the API file into the Apache web root
+# Copy API file
 COPY api.php /var/www/html/api.php
 
-# Write .htaccess directly — no need to commit a separate .htaccess file to your repo
-RUN echo 'Options -Indexes\n\
-<IfModule mod_rewrite.c>\n\
-    RewriteEngine On\n\
-    RewriteCond %{REQUEST_METHOD} OPTIONS\n\
-    RewriteRule .* - [L]\n\
-</IfModule>' > /var/www/html/.htaccess
+# Fix Apache config: allow access to /var/www/html, enable AllowOverride
+RUN sed -i 's|<Directory /var/www/>|<Directory /var/www/html/>|g' /etc/apache2/apache2.conf || true && \
+    printf '<Directory /var/www/html>\n\tOptions Indexes FollowSymLinks\n\tAllowOverride All\n\tRequire all granted\n</Directory>\n' \
+    > /etc/apache2/conf-available/smarthome.conf && \
+    a2enconf smarthome
 
-# Allow AllowOverride so .htaccess is respected by Apache
-RUN sed -i 's/AllowOverride None/AllowOverride All/g' /etc/apache2/apache2.conf
+# Write .htaccess inline
+RUN printf 'Options -Indexes\nRewriteEngine On\nRewriteCond %%{REQUEST_METHOD} OPTIONS\nRewriteRule .* - [L]\n' \
+    > /var/www/html/.htaccess
 
-# Set correct file permissions
+# Permissions
 RUN chown -R www-data:www-data /var/www/html && \
+    chmod 755 /var/www/html && \
     chmod 644 /var/www/html/api.php && \
     chmod 644 /var/www/html/.htaccess
 
-# Apache listens on port 80 inside the container.
 EXPOSE 80
