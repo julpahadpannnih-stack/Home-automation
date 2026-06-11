@@ -1,0 +1,17 @@
+# .htaccess for Smart Home API Docker container
+# FIXED: Ensures api.php is accessible and OPTIONS preflight works
+
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Allow OPTIONS preflight through without redirect
+    RewriteCond %{REQUEST_METHOD} OPTIONS
+    RewriteRule .* - [L]
+</IfModule>
+
+# Allow cross-origin requests for the API
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+</IfModule>

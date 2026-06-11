@@ -1,0 +1,68 @@
+# render.yaml
+# Place this file in the ROOT of your GitHub repository.
+# Deploy via: Render Dashboard → New → Blueprint → connect your repo.
+#
+# FIXED: Added .htaccess to Dockerfile (see Dockerfile)
+# FIXED: FRONTEND_URL env var must be set AFTER first deploy so you know the static site URL
+# FIXED: Added APP_DEBUG and INIT_SECRET_USED env vars for security
+#
+# Required repo structure:
+#   /
+#   ├── index.html          ← frontend (Static Site service)
+#   ├── api.php             ← backend (Docker Web Service)
+#   ├── Dockerfile          ← used by the Web Service
+#   ├── .htaccess           ← Apache config inside Docker container
+#   ├── smarthome_db.sql    ← run this ONCE manually in your DB console
+#   └── render.yaml         ← this file
+
+services:
+
+  # ── 1. PHP API Backend (Docker) ─────────────────────────────────────────────
+  - type: web
+    name: smarthome-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    envVars:
+      # ── Database (fill these in Render Dashboard → smarthome-api → Environment) ──
+      - key: DB_HOST
+        sync: false         # Your Railway/PlanetScale/Aiven host string
+      - key: DB_PORT
+        value: "3306"
+      - key: DB_NAME
+        value: smarthome_db
+      - key: DB_USER
+        sync: false
+      - key: DB_PASS
+        sync: false
+
+      # ── CORS: set this to your Static Site URL after first deploy ────────────
+      # Example value: https://smarthome-frontend.onrender.com
+      # You can also set TWO origins separated by comma:
+      # https://smarthome-frontend.onrender.com,http://localhost:3000
+      - key: FRONTEND_URL
+        sync: false
+
+      # ── Security ─────────────────────────────────────────────────────────────
+      # Auto-generated secret used by the /init_password helper endpoint
+      - key: INIT_SECRET
+        generateValue: true
+
+      # Set this to "true" in Render after you've run /init_password once
+      - key: INIT_SECRET_USED
+        value: "false"
+
+      # Set to "true" only during local debugging. Keep "false" in production.
+      - key: APP_DEBUG
+        value: "false"
+
+  # ── 2. HTML Frontend (Static Site) ─────────────────────────────────────────
+  - type: web
+    name: smarthome-frontend
+    runtime: static
+    staticPublishPath: .    # serves index.html from repo root
+    plan: free
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-cache     # always fetch fresh HTML after deploys
